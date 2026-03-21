@@ -8,15 +8,30 @@ app.use(express.json());
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function getAnswer(answers, fieldRef) {
-  const a = answers?.find((ans) => ans.field.ref === fieldRef);
-  if (!a) return null;
-  if (a.type === "text" || a.type === "email") return a.text || a.email;
+function getEmail(answers) {
+  const a = answers?.find((ans) => ans.type === "email");
+  return a?.email || null;
+}
+
+function getName(answers) {
+  const a = answers?.find((ans) => ans.type === "text");
+  return a?.text || "Friend";
+}
+
+function getByIndex(answers, index) {
+  return answers?.[index] || null;
+}
+
+function extractValue(a) {
+  if (!a) return "not provided";
+  if (a.type === "text") return a.text;
+  if (a.type === "email") return a.email;
   if (a.type === "number") return a.number;
   if (a.type === "opinion_scale" || a.type === "rating") return a.number;
   if (a.type === "choice") return a.choice?.label;
   if (a.type === "choices") return a.choices?.labels?.join(", ");
-  return null;
+  if (a.type === "long_text") return a.text;
+  return "not provided";
 }
 
 async function generateReport(intake) {
@@ -82,26 +97,40 @@ async function sendEmail(toEmail, name, reportContent) {
 app.post("/intake", async (req, res) => {
   res.sendStatus(200);
 
-  const { answers } = req.body.form_response;
+  try {
+    const { answers } = req.body.form_response;
 
-  const intake = {
-    name:         getAnswer(answers, "name") || "Friend",
-    email:        getAnswer(answers, "email"),
-    age:          getAnswer(answers, "age"),
-    goals:        getAnswer(answers, "goals"),
-    sleepHours:   getAnswer(answers, "sleep_hours"),
-    sleepQuality: getAnswer(answers, "sleep_quality"),
-    energyPattern:getAnswer(answers, "energy_pattern"),
-    caffeine:     getAnswer(answers, "caffeine"),
-    stressLevel:  getAnswer(answers, "stress_level"),
-    exerciseDays: getAnswer(answers, "exercise_days"),
-    supplements:  getAnswer(answers, "supplements") || "none",
-    notes:        getAnswer(answers, "notes") || "none",
-  };
+    console.log("Received answers:", JSON.stringify(answers, null, 2));
 
-  const report = await generateReport(intake);
-  await sendEmail(intake.email, intake.name, report);
-  console.log(`Report sent to ${intake.email}`);
+    const intake = {
+      name:          getName(answers),
+      email:         getEmail(answers),
+      age:           extractValue(getByIndex(answers, 1)),
+      goals:         extractValue(getByIndex(answers, 2)),
+      sleepHours:    extractValue(getByIndex(answers, 3)),
+      sleepQuality:  extractValue(getByIndex(answers, 4)),
+      energyPattern: extractValue(getByIndex(answers, 5)),
+      caffeine:      extractValue(getByIndex(answers, 6)),
+      stressLevel:   extractValue(getByIndex(answers, 7)),
+      exerciseDays:  extractValue(getByIndex(answers, 8)),
+      supplements:   extractValue(getByIndex(answers, 9)) || "none",
+      notes:         extractValue(getByIndex(answers, 10)) || "none",
+    };
+
+    console.log("Parsed intake:", JSON.stringify(intake, null, 2));
+
+    if (!intake.email) {
+      console.log("No email found — cannot send report");
+      return;
+    }
+
+    const report = await generateReport(intake);
+    await sendEmail(intake.email, intake.name, report);
+    console.log(`Report sent to ${intake.email}`);
+
+  } catch (err) {
+    console.error("Error processing intake:", err);
+  }
 });
 
 app.listen(3000, () => console.log("Intake server running on port 3000"));
