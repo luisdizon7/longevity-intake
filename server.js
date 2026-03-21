@@ -38,13 +38,28 @@ async function generateReport(intake) {
   const response = await claude.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 1500,
-    system: `You are a longevity health coach writing a personalized health 
-assessment report. Be warm, specific, and science-backed. Format your response 
-in clean sections with clear headers. Never be generic — reference their 
-specific answers. End with an encouraging CTA to book a discovery call.`,
+    system: `You are the Primal Span coach — a direct, no-nonsense longevity 
+expert who cuts through wellness noise and tells people exactly what to fix 
+and why. You don't flatter, you don't pad. You assess, prioritize, and give 
+clear direction.
+
+Your framework is the 4 Pillars of Primal Span:
+1. SLEEP — the foundation. Nothing else works without it.
+2. NUTRITION — fuel quality determines output quality.
+3. MOVEMENT — the body is meant to move. Sedentary = accelerated aging.
+4. STRESS — chronic stress is the silent killer of healthspan.
+
+Your report style:
+- Short punchy sentences. No waffle.
+- Call out the biggest problem first, not the easiest win.
+- Be honest if someone's habits are hurting them — say it plainly.
+- Back every recommendation with a one-line reason why.
+- Never use filler phrases like "great question" or "it's important to note".
+- Write like a trusted expert who respects the reader's intelligence.`,
+
     messages: [{
       role: "user",
-      content: `Write a personalized longevity health assessment for:
+      content: `Write a Primal Span longevity assessment for this person:
 
 Name: ${intake.name}, Age: ${intake.age}
 Goals: ${intake.goals}
@@ -56,11 +71,38 @@ Exercise: ${intake.exerciseDays} days/week
 Supplements: ${intake.supplements}
 Notes: ${intake.notes}
 
-Include:
-1. Their personal longevity score (out of 100) with a 2-sentence explanation
-2. Their top 3 optimization opportunities ranked by impact
-3. One quick win they can implement TODAY for each area
-4. A 2-sentence encouragement and invitation to book a free discovery call`
+Structure the report exactly like this:
+
+PRIMAL SPAN SCORE: [X/100]
+[2 sentences explaining the score based on their specific numbers. Be direct.]
+
+YOUR BIGGEST PROBLEM RIGHT NOW
+[Name the single most damaging habit or gap. No softening. One short paragraph.]
+
+THE 4 PILLARS — YOUR BREAKDOWN
+
+SLEEP
+Status: [one word — Critical / Poor / Moderate / Good / Optimal]
+[2-3 sentences on their sleep situation and exact impact on their healthspan.]
+Fix this week: [one specific action, no vague advice]
+
+NUTRITION
+Status: [one word]
+[2-3 sentences on their nutrition situation.]
+Fix this week: [one specific action]
+
+MOVEMENT
+Status: [one word]
+[2-3 sentences on their movement situation.]
+Fix this week: [one specific action]
+
+STRESS
+Status: [one word]
+[2-3 sentences on their stress situation.]
+Fix this week: [one specific action]
+
+BOTTOM LINE
+[3 sentences max. What happens if they change nothing. What's possible if they do. End with one direct sentence that leads into booking a call.]`
     }]
   });
   return response.content[0].text;
@@ -70,25 +112,40 @@ async function sendEmail(toEmail, name, reportContent) {
   await resend.emails.send({
     from: "onboarding@resend.dev",
     to: toEmail,
-    subject: `${name}, your personalized longevity assessment is ready`,
+    subject: `${name}, your Primal Span assessment is ready`,
     html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;">
-        <h2 style="font-weight:500;margin-bottom:24px;">
-          Hi ${name}, here is your longevity assessment
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#111;">
+        <div style="margin-bottom:28px;">
+          <span style="font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#888;">
+            Primal Span
+          </span>
+        </div>
+        <h2 style="font-size:22px;font-weight:600;margin:0 0 8px;">
+          Your longevity assessment, ${name}
         </h2>
-        <div style="white-space:pre-wrap;line-height:1.7;color:#333;">
+        <p style="font-size:14px;color:#666;margin:0 0 32px;">
+          No fluff. Just what you need to know.
+        </p>
+        <div style="white-space:pre-wrap;line-height:1.8;font-size:15px;color:#222;">
           ${reportContent.replace(/\n/g, "<br>")}
         </div>
-        <div style="margin-top:40px;padding:24px;background:#f5f5f5;border-radius:8px;">
-          <p style="margin:0 0 16px;font-weight:500;">
-            Ready to build your full 90-day protocol?
+        <div style="margin-top:48px;padding:28px;background:#f8f8f8;border-radius:8px;border-left:3px solid #111;">
+          <p style="margin:0 0 6px;font-size:16px;font-weight:600;">
+            Ready to fix this?
           </p>
-          <a href="https://calendly.com/yourlink" 
-             style="background:#000;color:#fff;padding:12px 24px;
-                    border-radius:6px;text-decoration:none;font-size:14px;">
-            Book your free discovery call
+          <p style="margin:0 0 20px;font-size:14px;color:#555;">
+            Book a free 30-minute call. We'll build your 90-day Primal Span protocol.
+          </p>
+          <a href="https://calendly.com/luisdizon7/30min"
+             style="display:inline-block;background:#111;color:#fff;padding:12px 28px;
+                    border-radius:6px;text-decoration:none;font-size:14px;font-weight:500;
+                    letter-spacing:0.02em;">
+            Book your free call →
           </a>
         </div>
+        <p style="margin-top:32px;font-size:12px;color:#aaa;">
+          Primal Span · You received this because you completed our health assessment.
+        </p>
       </div>
     `,
   });
