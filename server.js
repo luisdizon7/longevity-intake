@@ -62,10 +62,17 @@ async function subscribeToKit(email, name) {
       }),
     });
     const subData = await subResponse.json();
-    const subscriberId = subData?.subscriber?.id;
-    console.log("Kit subscriber created:", subscriberId);
+    console.log("Kit full response:", JSON.stringify(subData, null, 2));
 
-    if (!subscriberId) return;
+    const subscriberId = subData?.subscriber?.id
+      || subData?.data?.subscriber?.id
+      || subData?.id;
+
+    console.log("Kit subscriber ID:", subscriberId);
+    if (!subscriberId) {
+      console.log("Could not find subscriber ID — skipping tag");
+      return;
+    }
 
     const tagResponse = await fetch("https://api.kit.com/v4/tags", {
       method: "POST",
@@ -76,19 +83,27 @@ async function subscribeToKit(email, name) {
       body: JSON.stringify({ name: "primal-span-lead" }),
     });
     const tagData = await tagResponse.json();
-    const tagId = tagData?.tag?.id;
+    console.log("Kit tag response:", JSON.stringify(tagData, null, 2));
+
+    const tagId = tagData?.tag?.id
+      || tagData?.data?.tag?.id
+      || tagData?.id;
 
     if (!tagId) return;
 
-    await fetch(`https://api.kit.com/v4/subscribers/${subscriberId}/tags`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Kit-Api-Key": KIT_API_KEY,
-      },
-      body: JSON.stringify({ tag_id: tagId }),
-    });
-    console.log("Tag added to subscriber");
+    const tagAddResponse = await fetch(
+      `https://api.kit.com/v4/subscribers/${subscriberId}/tags`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Kit-Api-Key": KIT_API_KEY,
+        },
+        body: JSON.stringify({ tag_id: tagId }),
+      }
+    );
+    const tagAddData = await tagAddResponse.json();
+    console.log("Tag add response:", JSON.stringify(tagAddData, null, 2));
 
   } catch (err) {
     console.error("Kit subscription error:", err);
@@ -174,25 +189,22 @@ async function sendEmail(toEmail, name, reportContent) {
   const score = extractScore(reportContent);
   const scoreColor = getScoreColor(score);
   const scoreLabel = getScoreLabel(score);
-  const scorePercent = score;
 
   const formattedReport = reportContent
     .replace(/\*\*(.*?)\*\*/g, '<span style="color:#fff;font-weight:700;">$1</span>')
-    .replace(/^(PRIMAL SPAN SCORE:.*?)$/m, '')
+    .replace(/^PRIMAL SPAN SCORE:.*$/m, '')
     .replace(/^(YOUR BIGGEST PROBLEM RIGHT NOW)$/m,
-      '<div style="color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
+      '<div style="color:#6b7280;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
     .replace(/^(THE 4 PILLARS — YOUR BREAKDOWN)$/m,
-      '<div style="color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
-    .replace(/^(SLEEP|NUTRITION|MOVEMENT|STRESS)$/m,
-      '<div style="color:#fff;font-size:16px;font-weight:700;margin:24px 0 4px;">$1</div>')
-    .replace(/^(SLEEP|NUTRITION|MOVEMENT|STRESS)/gm,
+      '<div style="color:#6b7280;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
+    .replace(/^(SLEEP|NUTRITION|MOVEMENT|STRESS)$/gm,
       '<div style="color:#fff;font-size:16px;font-weight:700;margin:24px 0 4px;">$1</div>')
     .replace(/^(BOTTOM LINE)$/m,
-      '<div style="color:#9ca3af;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
+      '<div style="color:#6b7280;font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;margin:32px 0 8px;">$1</div>')
     .replace(/^(Status: .+)$/gm,
       '<div style="display:inline-block;font-size:11px;font-weight:700;letter-spacing:0.08em;padding:3px 10px;border-radius:4px;background:#1f2937;color:#9ca3af;margin-bottom:8px;">$1</div>')
-    .replace(/^(Fix this week: .+)$/gm,
-      '<div style="border-left:3px solid ' + scoreColor + ';padding:8px 12px;margin:12px 0;color:#d1d5db;font-size:14px;">$1</div>')
+    .replace(/^(Fix this week:.+)$/gm,
+      `<div style="border-left:3px solid ${scoreColor};padding:8px 12px;margin:12px 0;color:#d1d5db;font-size:14px;">$1</div>`)
     .replace(/^---$/gm, '<div style="height:1px;background:#1f2937;margin:16px 0;"></div>')
     .replace(/\n/g, "<br>");
 
@@ -204,68 +216,68 @@ async function sendEmail(toEmail, name, reportContent) {
       <div style="background:#000;min-height:100vh;padding:0;margin:0;">
         <div style="max-width:600px;margin:0 auto;padding:48px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 
-          <!-- Header -->
-          <div style="margin-bottom:40px;">
-            <span style="font-size:11px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#6b7280;">
+          <!-- Hero header — PRIMAL SPAN is the star -->
+          <div style="margin-bottom:40px;border-bottom:1px solid #1f2937;padding-bottom:32px;">
+            <div style="font-size:32px;font-weight:900;color:#fff;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:4px;">
               PRIMAL SPAN
-            </span>
+            </div>
+            <div style="font-size:12px;color:#6b7280;letter-spacing:0.1em;text-transform:uppercase;">
+              Longevity Assessment Report
+            </div>
           </div>
 
-          <!-- Title -->
-          <h1 style="font-size:28px;font-weight:700;color:#fff;margin:0 0 8px;line-height:1.2;">
-            Your longevity assessment
-          </h1>
-          <p style="font-size:15px;color:#6b7280;margin:0 0 40px;">
-            No fluff. Just what you need to know, ${name}.
+          <!-- Recipient line -->
+          <p style="font-size:15px;color:#9ca3af;margin:0 0 32px;">
+            Prepared for <span style="color:#fff;font-weight:600;">${name}</span> · No fluff. Just what you need to know.
           </p>
 
           <!-- Score card -->
           <div style="background:#0a0a0a;border:1px solid #1f2937;border-radius:12px;padding:28px;margin-bottom:40px;">
-            <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:16px;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
               <div>
                 <div style="font-size:11px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#6b7280;margin-bottom:6px;">
-                  PRIMAL SPAN SCORE
+                  YOUR SCORE
                 </div>
-                <div style="font-size:52px;font-weight:800;color:${scoreColor};line-height:1;">
-                  ${score}<span style="font-size:24px;color:#4b5563;">/100</span>
+                <div style="font-size:64px;font-weight:900;color:${scoreColor};line-height:1;letter-spacing:-2px;">
+                  ${score}<span style="font-size:28px;color:#374151;font-weight:400;">/100</span>
                 </div>
               </div>
-              <div style="text-align:right;">
-                <div style="display:inline-block;background:${scoreColor}22;color:${scoreColor};font-size:12px;font-weight:700;letter-spacing:0.1em;padding:6px 14px;border-radius:6px;border:1px solid ${scoreColor}44;">
+              <div style="text-align:right;padding-top:8px;">
+                <div style="display:inline-block;background:${scoreColor}22;color:${scoreColor};font-size:13px;font-weight:800;letter-spacing:0.12em;padding:8px 16px;border-radius:6px;border:1px solid ${scoreColor}55;text-transform:uppercase;">
                   ${scoreLabel}
                 </div>
               </div>
             </div>
 
-            <!-- Progress bar -->
-            <div style="background:#1f2937;border-radius:99px;height:8px;overflow:hidden;">
-              <div style="background:${scoreColor};width:${scorePercent}%;height:100%;border-radius:99px;"></div>
+            <!-- Main progress bar -->
+            <div style="background:#1f2937;border-radius:99px;height:10px;overflow:hidden;margin-bottom:20px;">
+              <div style="background:${scoreColor};width:${score}%;height:100%;border-radius:99px;"></div>
             </div>
 
-            <!-- Pillar mini scores row -->
-            <div style="display:flex;gap:8px;margin-top:20px;">
-              <div style="flex:1;background:#111;border-radius:8px;padding:10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6b7280;margin-bottom:4px;">SLEEP</div>
+            <!-- 4 pillar bars -->
+            <div style="display:flex;gap:8px;">
+              <div style="flex:1;background:#111;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">SLEEP</div>
                 <div style="width:100%;background:#1f2937;border-radius:99px;height:4px;">
-                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, scorePercent - 5))}%;height:4px;border-radius:99px;"></div>
+                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, score - 5))}%;height:4px;border-radius:99px;"></div>
                 </div>
               </div>
-              <div style="flex:1;background:#111;border-radius:8px;padding:10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6b7280;margin-bottom:4px;">NUTRITION</div>
+              <div style="flex:1;background:#111;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">NUTRITION</div>
                 <div style="width:100%;background:#1f2937;border-radius:99px;height:4px;">
-                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, scorePercent + 5))}%;height:4px;border-radius:99px;"></div>
+                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, score + 5))}%;height:4px;border-radius:99px;"></div>
                 </div>
               </div>
-              <div style="flex:1;background:#111;border-radius:8px;padding:10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6b7280;margin-bottom:4px;">MOVEMENT</div>
+              <div style="flex:1;background:#111;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">MOVEMENT</div>
                 <div style="width:100%;background:#1f2937;border-radius:99px;height:4px;">
-                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, scorePercent - 10))}%;height:4px;border-radius:99px;"></div>
+                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, score - 10))}%;height:4px;border-radius:99px;"></div>
                 </div>
               </div>
-              <div style="flex:1;background:#111;border-radius:8px;padding:10px;text-align:center;">
-                <div style="font-size:10px;font-weight:700;letter-spacing:0.08em;color:#6b7280;margin-bottom:4px;">STRESS</div>
+              <div style="flex:1;background:#111;border-radius:8px;padding:12px 10px;text-align:center;">
+                <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">STRESS</div>
                 <div style="width:100%;background:#1f2937;border-radius:99px;height:4px;">
-                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, scorePercent + 10))}%;height:4px;border-radius:99px;"></div>
+                  <div style="background:${scoreColor};width:${Math.min(100, Math.max(10, score + 10))}%;height:4px;border-radius:99px;"></div>
                 </div>
               </div>
             </div>
@@ -288,17 +300,20 @@ async function sendEmail(toEmail, name, reportContent) {
               Book a free 30-minute call. We'll build your<br>90-day Primal Span protocol together.
             </p>
             <a href="https://calendly.com/luisdizon7/30min"
-               style="display:inline-block;background:#fff;color:#000;padding:14px 32px;
-                      border-radius:8px;text-decoration:none;font-size:14px;font-weight:700;
-                      letter-spacing:0.04em;">
+               style="display:inline-block;background:#fff;color:#000;padding:14px 36px;
+                      border-radius:8px;text-decoration:none;font-size:14px;font-weight:800;
+                      letter-spacing:0.06em;text-transform:uppercase;">
               Book your free call →
             </a>
           </div>
 
           <!-- Footer -->
-          <div style="margin-top:32px;text-align:center;">
+          <div style="margin-top:32px;text-align:center;border-top:1px solid #111;padding-top:24px;">
+            <div style="font-size:13px;font-weight:800;letter-spacing:0.15em;color:#374151;margin-bottom:6px;">
+              PRIMAL SPAN
+            </div>
             <p style="font-size:12px;color:#374151;margin:0;">
-              Primal Span · You received this because you completed our health assessment.
+              You received this because you completed our health assessment.
             </p>
           </div>
 
