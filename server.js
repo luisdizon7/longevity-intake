@@ -33,7 +33,8 @@ function getFieldByLabel(fields, labelKeyword) {
 
 async function subscribeToKit(email, name) {
   try {
-    const response = await fetch("https://api.kit.com/v4/subscribers", {
+    // Step 1 — create or update subscriber
+    const subResponse = await fetch("https://api.kit.com/v4/subscribers", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -44,8 +45,38 @@ async function subscribeToKit(email, name) {
         first_name: name,
       }),
     });
-    const data = await response.json();
-    console.log("Kit subscriber added:", data?.subscriber?.id || "unknown");
+    const subData = await subResponse.json();
+    const subscriberId = subData?.subscriber?.id;
+    console.log("Kit subscriber created:", subscriberId);
+
+    if (!subscriberId) return;
+
+    // Step 2 — get or create the tag
+    const tagResponse = await fetch("https://api.kit.com/v4/tags", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Kit-Api-Key": KIT_API_KEY,
+      },
+      body: JSON.stringify({ name: "primal-span-lead" }),
+    });
+    const tagData = await tagResponse.json();
+    const tagId = tagData?.tag?.id;
+    console.log("Kit tag id:", tagId);
+
+    if (!tagId) return;
+
+    // Step 3 — add tag to subscriber
+    await fetch(`https://api.kit.com/v4/subscribers/${subscriberId}/tags`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Kit-Api-Key": KIT_API_KEY,
+      },
+      body: JSON.stringify({ tag_id: tagId }),
+    });
+    console.log("Tag added to subscriber");
+
   } catch (err) {
     console.error("Kit subscription error:", err);
   }
@@ -204,7 +235,7 @@ app.post("/intake", async (req, res) => {
     ]);
 
     await sendEmail(intake.email, intake.name, report);
-    console.log(`Report sent and Kit subscribed for ${intake.email}`);
+    console.log(`Report sent and Kit tagged for ${intake.email}`);
 
   } catch (err) {
     console.error("Error processing intake:", err);
