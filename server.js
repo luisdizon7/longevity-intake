@@ -50,6 +50,7 @@ function getScoreLabel(score) {
 
 async function subscribeToKit(email, name) {
   try {
+    // Step 1 — create or update subscriber
     const subResponse = await fetch("https://api.kit.com/v4/subscribers", {
       method: "POST",
       headers: {
@@ -62,18 +63,19 @@ async function subscribeToKit(email, name) {
       }),
     });
     const subData = await subResponse.json();
-    console.log("Kit full response:", JSON.stringify(subData, null, 2));
+    console.log("Kit subscriber response:", JSON.stringify(subData, null, 2));
 
     const subscriberId = subData?.subscriber?.id
       || subData?.data?.subscriber?.id
       || subData?.id;
 
-    console.log("Kit subscriber ID:", subscriberId);
     if (!subscriberId) {
       console.log("Could not find subscriber ID — skipping tag");
       return;
     }
+    console.log("Kit subscriber ID:", subscriberId);
 
+    // Step 2 — get or create tag
     const tagResponse = await fetch("https://api.kit.com/v4/tags", {
       method: "POST",
       headers: {
@@ -89,21 +91,27 @@ async function subscribeToKit(email, name) {
       || tagData?.data?.tag?.id
       || tagData?.id;
 
-    if (!tagId) return;
+    if (!tagId) {
+      console.log("Could not find tag ID — skipping tag add");
+      return;
+    }
+    console.log("Kit tag ID:", tagId);
 
+    // Step 3 — add subscriber to tag (correct V4 endpoint)
     const tagAddResponse = await fetch(
-      `https://api.kit.com/v4/subscribers/${subscriberId}/tags`,
+      `https://api.kit.com/v4/tags/${tagId}/subscribers`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "X-Kit-Api-Key": KIT_API_KEY,
         },
-        body: JSON.stringify({ tag_id: tagId }),
+        body: JSON.stringify({ subscriber_id: subscriberId }),
       }
     );
     const tagAddData = await tagAddResponse.json();
     console.log("Tag add response:", JSON.stringify(tagAddData, null, 2));
+    console.log("Tag successfully added to subscriber");
 
   } catch (err) {
     console.error("Kit subscription error:", err);
@@ -216,7 +224,6 @@ async function sendEmail(toEmail, name, reportContent) {
       <div style="background:#000;min-height:100vh;padding:0;margin:0;">
         <div style="max-width:600px;margin:0 auto;padding:48px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;">
 
-          <!-- Hero header — PRIMAL SPAN is the star -->
           <div style="margin-bottom:40px;border-bottom:1px solid #1f2937;padding-bottom:32px;">
             <div style="font-size:32px;font-weight:900;color:#fff;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:4px;">
               PRIMAL SPAN
@@ -226,12 +233,10 @@ async function sendEmail(toEmail, name, reportContent) {
             </div>
           </div>
 
-          <!-- Recipient line -->
           <p style="font-size:15px;color:#9ca3af;margin:0 0 32px;">
             Prepared for <span style="color:#fff;font-weight:600;">${name}</span> · No fluff. Just what you need to know.
           </p>
 
-          <!-- Score card -->
           <div style="background:#0a0a0a;border:1px solid #1f2937;border-radius:12px;padding:28px;margin-bottom:40px;">
             <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:16px;">
               <div>
@@ -242,19 +247,17 @@ async function sendEmail(toEmail, name, reportContent) {
                   ${score}<span style="font-size:28px;color:#374151;font-weight:400;">/100</span>
                 </div>
               </div>
-              <div style="text-align:right;padding-top:8px;">
+              <div style="padding-top:8px;">
                 <div style="display:inline-block;background:${scoreColor}22;color:${scoreColor};font-size:13px;font-weight:800;letter-spacing:0.12em;padding:8px 16px;border-radius:6px;border:1px solid ${scoreColor}55;text-transform:uppercase;">
                   ${scoreLabel}
                 </div>
               </div>
             </div>
 
-            <!-- Main progress bar -->
             <div style="background:#1f2937;border-radius:99px;height:10px;overflow:hidden;margin-bottom:20px;">
               <div style="background:${scoreColor};width:${score}%;height:100%;border-radius:99px;"></div>
             </div>
 
-            <!-- 4 pillar bars -->
             <div style="display:flex;gap:8px;">
               <div style="flex:1;background:#111;border-radius:8px;padding:12px 10px;text-align:center;">
                 <div style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#6b7280;margin-bottom:8px;text-transform:uppercase;">SLEEP</div>
@@ -283,12 +286,10 @@ async function sendEmail(toEmail, name, reportContent) {
             </div>
           </div>
 
-          <!-- Report body -->
           <div style="color:#d1d5db;font-size:15px;line-height:1.8;">
             ${formattedReport}
           </div>
 
-          <!-- CTA -->
           <div style="margin-top:48px;background:#0a0a0a;border:1px solid #1f2937;border-radius:12px;padding:32px;text-align:center;">
             <div style="font-size:11px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#6b7280;margin-bottom:12px;">
               NEXT STEP
@@ -307,7 +308,6 @@ async function sendEmail(toEmail, name, reportContent) {
             </a>
           </div>
 
-          <!-- Footer -->
           <div style="margin-top:32px;text-align:center;border-top:1px solid #111;padding-top:24px;">
             <div style="font-size:13px;font-weight:800;letter-spacing:0.15em;color:#374151;margin-bottom:6px;">
               PRIMAL SPAN
