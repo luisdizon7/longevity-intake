@@ -7,6 +7,7 @@ app.use(express.json());
 
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
+const KIT_API_KEY = process.env.KIT_API_KEY;
 
 function getField(fields, type) {
   const f = fields?.find((f) => f.type === type);
@@ -28,6 +29,26 @@ function getFieldByLabel(fields, labelKeyword) {
     return selected?.map((o) => o.text).join(", ") || "not provided";
   }
   return f.value || "not provided";
+}
+
+async function subscribeToKit(email, name) {
+  try {
+    const response = await fetch("https://api.kit.com/v4/subscribers", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Kit-Api-Key": KIT_API_KEY,
+      },
+      body: JSON.stringify({
+        email_address: email,
+        first_name: name,
+      }),
+    });
+    const data = await response.json();
+    console.log("Kit subscriber added:", data?.subscriber?.id || "unknown");
+  } catch (err) {
+    console.error("Kit subscription error:", err);
+  }
 }
 
 async function generateReport(intake) {
@@ -177,9 +198,13 @@ app.post("/intake", async (req, res) => {
       return;
     }
 
-    const report = await generateReport(intake);
+    const [report] = await Promise.all([
+      generateReport(intake),
+      subscribeToKit(intake.email, intake.name),
+    ]);
+
     await sendEmail(intake.email, intake.name, report);
-    console.log(`Report sent to ${intake.email}`);
+    console.log(`Report sent and Kit subscribed for ${intake.email}`);
 
   } catch (err) {
     console.error("Error processing intake:", err);
