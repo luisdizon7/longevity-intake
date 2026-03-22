@@ -8,30 +8,26 @@ app.use(express.json());
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function getEmail(answers) {
-  const a = answers?.find((ans) => ans.type === "email");
-  return a?.email || null;
+function getField(fields, type) {
+  const f = fields?.find((f) => f.type === type);
+  if (!f) return null;
+  if (type === "MULTIPLE_CHOICE") {
+    const selected = f.options?.filter((o) => f.value?.includes(o.id));
+    return selected?.map((o) => o.text).join(", ") || null;
+  }
+  return f.value || null;
 }
 
-function getName(answers) {
-  const a = answers?.find((ans) => ans.type === "text");
-  return a?.text || "Friend";
-}
-
-function getByIndex(answers, index) {
-  return answers?.[index] || null;
-}
-
-function extractValue(a) {
-  if (!a) return "not provided";
-  if (a.type === "text") return a.text;
-  if (a.type === "email") return a.email;
-  if (a.type === "number") return a.number;
-  if (a.type === "opinion_scale" || a.type === "rating") return a.number;
-  if (a.type === "choice") return a.choice?.label;
-  if (a.type === "choices") return a.choices?.labels?.join(", ");
-  if (a.type === "long_text") return a.text;
-  return "not provided";
+function getFieldByLabel(fields, labelKeyword) {
+  const f = fields?.find((f) =>
+    f.label.toLowerCase().includes(labelKeyword.toLowerCase())
+  );
+  if (!f) return "not provided";
+  if (f.type === "MULTIPLE_CHOICE") {
+    const selected = f.options?.filter((o) => f.value?.includes(o.id));
+    return selected?.map((o) => o.text).join(", ") || "not provided";
+  }
+  return f.value || "not provided";
 }
 
 async function generateReport(intake) {
@@ -155,23 +151,23 @@ app.post("/intake", async (req, res) => {
   res.sendStatus(200);
 
   try {
-    const { answers } = req.body.form_response;
+    const { fields } = req.body.data;
 
-    console.log("Received answers:", JSON.stringify(answers, null, 2));
+    console.log("Received fields:", JSON.stringify(fields, null, 2));
 
     const intake = {
-      name:          getName(answers),
-      email:         getEmail(answers),
-      age:           extractValue(getByIndex(answers, 1)),
-      goals:         extractValue(getByIndex(answers, 2)),
-      sleepHours:    extractValue(getByIndex(answers, 3)),
-      sleepQuality:  extractValue(getByIndex(answers, 4)),
-      energyPattern: extractValue(getByIndex(answers, 5)),
-      caffeine:      extractValue(getByIndex(answers, 6)),
-      stressLevel:   extractValue(getByIndex(answers, 7)),
-      exerciseDays:  extractValue(getByIndex(answers, 8)),
-      supplements:   extractValue(getByIndex(answers, 9)) || "none",
-      notes:         extractValue(getByIndex(answers, 10)) || "none",
+      name:          getFieldByLabel(fields, "name"),
+      email:         getField(fields, "INPUT_EMAIL"),
+      age:           getFieldByLabel(fields, "age"),
+      goals:         getFieldByLabel(fields, "goals"),
+      sleepHours:    getFieldByLabel(fields, "hours of sleep"),
+      sleepQuality:  getFieldByLabel(fields, "sleep quality"),
+      energyPattern: getFieldByLabel(fields, "energy"),
+      caffeine:      getFieldByLabel(fields, "caffeine"),
+      stressLevel:   getFieldByLabel(fields, "stress"),
+      exerciseDays:  getFieldByLabel(fields, "exercise"),
+      supplements:   getFieldByLabel(fields, "supplements") || "none",
+      notes:         getFieldByLabel(fields, "anything else") || "none",
     };
 
     console.log("Parsed intake:", JSON.stringify(intake, null, 2));
