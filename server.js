@@ -217,7 +217,7 @@ async function sendEmail(toEmail, name, reportContent) {
     .replace(/\n/g, "<br>");
 
   await resend.emails.send({
-    from: "onboarding@resend.dev",
+    from: "coach@primalspan.co",
     to: toEmail,
     subject: `${name}, your Primal Span score: ${score}/100`,
     html: `
